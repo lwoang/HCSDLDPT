@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import cv2
-from feature_utils import extract_color_hist, extract_hog, extract_glcm_features
+from feature_utils import extract_color_hist, extract_hog, extract_glcm_features, preprocess_image_for_query
 from mysql_utils import fetch_all_features, find_top_k
 
 st.set_page_config(layout="wide")
@@ -25,13 +25,17 @@ if uploaded_file:
         if img is None:
             raise ValueError("Không thể đọc ảnh.")
 
-        resized_img = cv2.resize(img, (512, 288))  #size giống DB đã dùng
-        gray = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
+        #resized_img = cv2.resize(img, (512, 288))  #size giống DB đã dùng
+        if img.shape[1] == 512 and img.shape[0] == 288:
+            resized_img = img  # ảnh đã chuẩn, không cần xử lý lại
+        else:
+            resized_img = preprocess_image_for_query(input_path)  # áp dụng YOLO + nền trắng
+
 
         # Trích xuất đặc trưng
         color = extract_color_hist(resized_img)
-        hog = extract_hog(gray)
-        glcm = extract_glcm_features(gray)
+        hog = extract_hog(resized_img)
+        glcm = extract_glcm_features(resized_img)
 
         # Truy vấn DB
         db_data = fetch_all_features()
