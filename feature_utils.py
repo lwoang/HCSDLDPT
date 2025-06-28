@@ -3,7 +3,16 @@ import numpy as np
 from skimage.feature import hog
 from skimage.feature import graycomatrix, graycoprops
 from ultralytics import YOLO
+from resize3 import apply_mask_and_white_bg, crop_to_mask
+import streamlit as st 
 
+target_size = (512, 288)
+TARGET_SIZE = (512, 288)  # width x height
+
+@st.cache_resource
+def load_model():
+    from ultralytics import YOLO
+    return YOLO('yolov8n-seg.pt')
 
 def extract_color_hist(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -41,40 +50,70 @@ def extract_glcm_features(image):
     return np.array(features)  # shape (16,)
 
 
+#model = YOLO('yolov8n-seg.pt')  # Đảm bảo model YOLO đã được tải
 
-import cv2
-import numpy as np
-from ultralytics import YOLO
+# def preprocess_image_for_query(image_path):
+#     img = cv2.imread(image_path)
+#     if img is None:
+#         raise ValueError("❌ Không thể đọc ảnh.")
 
-model = YOLO('yolov8n.pt')  # Đảm bảo model YOLO đã được tải
+#     results = model(img)[0]
 
+#     if results.masks is None or len(results.masks.data) == 0:
+#         print("⚠️ Không tìm thấy mask – dùng ảnh gốc resize thường.")
+#         return resize_with_padding(img, TARGET_SIZE)
+
+#     # Dùng mask đầu tiên
+#     mask = results.masks.data[0].cpu().numpy()
+#     mask = cv2.resize(mask, (img.shape[1], img.shape[0]))
+#     mask = (mask > 0.5).astype(np.uint8) * 255
+
+#     # Tách vật thể – nền trắng
+#     white_bg = np.full_like(img, 255)
+#     for c in range(3):
+#         white_bg[:, :, c] = np.where(mask == 255, img[:, :, c], 255)
+
+#     # Cắt sát vật thể
+#     ys, xs = np.where(mask == 255)
+#     if len(xs) == 0 or len(ys) == 0:
+#         return resize_with_padding(white_bg, TARGET_SIZE)
+#     x1, x2 = xs.min(), xs.max()
+#     y1, y2 = ys.min(), ys.max()
+#     cropped = white_bg[y1:y2, x1:x2]
+
+#     return resize_with_padding(cropped, TARGET_SIZE)
+
+def resize_with_padding(image, target_size=(512, 288)):
+    h, w = image.shape[:2]
+    scale = min(target_size[0]/w, target_size[1]/h)
+    new_w, new_h = int(w * scale), int(h * scale)
+    resized = cv2.resize(image, (new_w, new_h))
+
+    pad_top = (target_size[1] - new_h) // 2
+    pad_bottom = target_size[1] - new_h - pad_top
+    pad_left = (target_size[0] - new_w) // 2
+    pad_right = target_size[0] - new_w - pad_left
+
+    return cv2.copyMakeBorder(resized, pad_top, pad_bottom, pad_left, pad_right,
+                              cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    
+    
+    
 def preprocess_image_for_query(image_path):
-    TARGET_SIZE = (512, 288)  # width, height
+    model = load_model()
     img = cv2.imread(image_path)
     if img is None:
         raise ValueError("❌ Không thể đọc ảnh.")
 
     results = model(img)[0]
-    if len(results.boxes) == 0:
-        print("Không phát hiện vật thể. Dùng lại ảnh gốc resize bình thường.")
-        return cv2.resize(img, TARGET_SIZE)
 
-    # Dùng bounding box đầu tiên (ảnh chỉ có 1 con vật)
-    x1, y1, x2, y2 = map(int, results.boxes.xyxy[0])
-    cropped = img[y1:y2, x1:x2]
+    if results.masks is None or len(results.masks.data) == 0:
+        print("⚠️ Không tìm thấy mask – dùng ảnh gốc resize thường.")
+        return resize_with_padding(img, TARGET_SIZE)
 
-    # Resize có padding trắng giống resize3.py
-    h, w = cropped.shape[:2]
-    scale = min(TARGET_SIZE[0] / w, TARGET_SIZE[1] / h)
-    new_w, new_h = int(w * scale), int(h * scale)
-    resized = cv2.resize(cropped, (new_w, new_h))
-
-    pad_top = (TARGET_SIZE[1] - new_h) // 2
-    pad_bottom = TARGET_SIZE[1] - new_h - pad_top
-    pad_left = (TARGET_SIZE[0] - new_w) // 2
-    pad_right = TARGET_SIZE[0] - new_w - pad_left
-
-    final = cv2.copyMakeBorder(resized, pad_top, pad_bottom, pad_left, pad_right,
-                               cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    mask = results.masks.data[0].cpu().numpy()
+    img_white_bg, bin_mask = apply_mask_and_white_bg(img, mask)
+    cropped = crop_to_mask(img_white_bg, bin_mask)
+    final = resize_with_padding(cropped, TARGET_SIZE)
 
     return final

@@ -51,14 +51,17 @@ def extract_all_features(image_path):
 
     return color, hog_feat, glcm_feat
 
-#Kết nối MySQL
+#Kết nối Postgres
+import psycopg2
+
 def connect_db():
-    return mysql.connector.connect(
+    return psycopg2.connect(
         host="localhost",
-        user="root",
-        password="1234567",  # thay bằng mật khẩu bạn đặt
-        database="animal_images_test"
+        user="postgres",
+        password="1234567",
+        dbname="BTL_ĐPT"
     )
+
 
 #Ghi dữ liệu vào CSDL
 def insert_features_to_db(name, path, color, hog_feat, glcm_feat):
@@ -98,5 +101,5 @@ def process_image_folder(folder_path):
 
 # Chạy chính
 if __name__ == "__main__":
-    folder_path = "./Anh_resize_last1"
+    folder_path = "./processed"
     process_image_folder(folder_path)
