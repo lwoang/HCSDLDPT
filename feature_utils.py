@@ -56,7 +56,7 @@ def preprocess_image_for_query(image_path):
 
     results = model(img)[0]
     if len(results.boxes) == 0:
-        print("⚠️ Không phát hiện vật thể. Dùng lại ảnh gốc resize bình thường.")
+        print("Không phát hiện vật thể. Dùng lại ảnh gốc resize bình thường.")
         return cv2.resize(img, TARGET_SIZE)
 
     # Dùng bounding box đầu tiên (ảnh chỉ có 1 con vật)
