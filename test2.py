@@ -3,30 +3,37 @@ import cv2
 import json
 import numpy as np
 import mysql.connector
-from skimage.feature import hog, graycomatrix, graycoprops
+from skimage.feature import graycomatrix, graycoprops, hog
 
-# ----------- 1. Trích xuất đặc trưng ảnh -----------
+
+# 1️⃣ Color Histogram (HSV, bins=8x8x8 = 512 chiều)
 def extract_color_hist(img):
-    hist = []
-    for i in range(3):  # RGB
-        h = cv2.calcHist([img], [i], None, [8], [0, 256])
-        hist.extend(h.flatten())
-    return np.array(hist)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    hist = cv2.calcHist([hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
+    return hist.flatten()
 
+# 2️⃣ HOG (khoảng ~79.000 chiều)
 def extract_hog(img_gray):
-    return hog(img_gray, pixels_per_cell=(8, 8), cells_per_block=(2, 2), feature_vector=True)
+    return hog(img_gray,
+               orientations=9,
+               pixels_per_cell=(8, 8),
+               cells_per_block=(2, 2),
+               feature_vector=True)
 
+# 3️⃣ GLCM (16 chiều)
 def extract_glcm_features(img_gray):
-    glcm = graycomatrix(img_gray, distances=[1],
-                        angles=[0, np.pi/4, np.pi/2, 3*np.pi/4],
-                        symmetric=True, normed=True)
-    features = []
+    glcm = graycomatrix(img_gray,
+                        distances=[1, 2],
+                        angles=[0, np.pi/4],
+                        symmetric=True,
+                        normed=True)
     props = ['contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation', 'ASM']
+    features = []
     for prop in props:
-        f = graycoprops(glcm, prop)
-        features.extend(f.flatten())
-    return np.array(features)
+        features.extend(graycoprops(glcm, prop).flatten())
+    return np.array(features[:16])  # lấy đúng 16 giá trị
 
+# Tổng hợp tất cả đặc trưng
 def extract_all_features(image_path):
     img = cv2.imread(image_path)
     if img is None:
@@ -36,19 +43,24 @@ def extract_all_features(image_path):
 
     color = extract_color_hist(img_resized)
     hog_feat = extract_hog(gray)
+    
+     #Thống kê HOG
+    print(f"HOG - {os.path.basename(image_path)} | mean: {hog_feat.mean():.4f}, std: {hog_feat.std():.4f}, nonzero: {(hog_feat != 0).sum()}")
+    
     glcm_feat = extract_glcm_features(gray)
 
     return color, hog_feat, glcm_feat
 
-# ----------- 2. Kết nối CSDL và lưu dữ liệu -----------
+#Kết nối MySQL
 def connect_db():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        password="12345678",  # sửa lại
+        password="1234567",  # thay bằng mật khẩu bạn đặt
         database="animal_images_test"
     )
 
+#Ghi dữ liệu vào CSDL
 def insert_features_to_db(name, path, color, hog_feat, glcm_feat):
     conn = connect_db()
     cursor = conn.cursor()
@@ -70,7 +82,7 @@ def insert_features_to_db(name, path, color, hog_feat, glcm_feat):
         cursor.close()
         conn.close()
 
-# ----------- 3. Xử lý hàng loạt ảnh từ thư mục -----------
+# Xử lý hàng loạt ảnh
 def process_image_folder(folder_path):
     supported_exts = ('.jpg', '.jpeg', '.png')
     for filename in os.listdir(folder_path):
@@ -80,11 +92,11 @@ def process_image_folder(folder_path):
                 print(f"📷 Đang xử lý: {filename}")
                 color, hog_feat, glcm_feat = extract_all_features(full_path)
                 insert_features_to_db(filename, full_path, color, hog_feat, glcm_feat)
-                print("✅ Đã lưu vào CSDL\n")
+                print("Đã lưu vào CSDL\n")
             except Exception as e:
                 print(f"❌ Bỏ qua ảnh {filename}: {e}\n")
 
-# ----------- 4. Chạy chính -----------
+# Chạy chính
 if __name__ == "__main__":
-    folder_path = "./Anh_resize_last1"  # chỉnh lại đường dẫn
+    folder_path = "./Anh_resize_last1"
     process_image_folder(folder_path)

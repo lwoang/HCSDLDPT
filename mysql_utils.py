@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 def fetch_all_features():
-    conn = mysql.connector.connect(host="localhost", user="root", password="12345678", database="animal_images_test")
+    conn = mysql.connector.connect(host="localhost", user="root", password="1234567", database="animal_images_test")
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT name, image_path, color_hist, hog, glcm FROM image_features4")
 

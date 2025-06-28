@@ -20,7 +20,7 @@ for file in os.listdir(input_folder):
         img_path = os.path.join(input_folder, file)
         img = cv2.imread(img_path)
         if img is None:
-            print(f"❌ Lỗi đọc ảnh: {file}")
+            print(f"Lỗi đọc ảnh: {file}")
             continue
 
         # Detect objects
@@ -34,7 +34,7 @@ for file in os.listdir(input_folder):
                 animal_boxes.append((x1, y1, x2, y2))
 
         if len(animal_boxes) == 0:
-            print(f"⚠️ Không phát hiện con vật trong ảnh: {file}")
+            print(f"Không phát hiện con vật trong ảnh: {file}")
             continue
 
         # Lấy box lớn nhất (trường hợp có nhiều con vật)
