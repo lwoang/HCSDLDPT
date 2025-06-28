@@ -24,6 +24,9 @@ def rename_images_in_directory(directory_path, prefix="image", extension_filter=
             if extension_filter is None or ext.lower() in extension_filter:
                 new_name = f"{prefix}_{count}{ext}"
                 new_path = os.path.join(directory_path, new_name)
+                if os.path.exists(new_path):
+                    print(f"⚠️ Bỏ qua vì đã tồn tại: {new_name}")
+                    continue
                 os.rename(file_path, new_path)
                 print(f"Renamed: {filename} -> {new_name}")
                 count += 1
@@ -31,4 +34,4 @@ def rename_images_in_directory(directory_path, prefix="image", extension_filter=
     print("Đã đổi tên xong toàn bộ ảnh.")
 
 # Ví dụ sử dụng
-rename_images_in_directory("./Anh_resize_last1", prefix="photo", extension_filter=[".jpg", ".png", ".jpeg"])
+rename_images_in_directory("./processed", prefix="photo", extension_filter=[".jpg", ".png", ".jpeg"])

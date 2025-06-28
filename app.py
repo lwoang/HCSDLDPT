@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import cv2
 from feature_utils import extract_color_hist, extract_hog, extract_glcm_features, preprocess_image_for_query
-from mysql_utils import fetch_all_features, find_top_k
+from pg_utils import fetch_all_features, find_top_k
 
 st.set_page_config(layout="wide")
 st.title("🔍 Tìm kiếm ảnh động vật tương đồng")
